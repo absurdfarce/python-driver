@@ -389,7 +389,7 @@ def run_setup(extensions):
     dependencies = ['geomet>=1.1']
 
     _EXTRAS_REQUIRE = {
-        'graph': ['gremlinpython==3.4.6'],
+        'graph': ['gremlinpython==3.5.0'],
         'cle': ['cryptography>=42.0']
     }
 
