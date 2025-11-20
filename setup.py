@@ -309,8 +309,9 @@ On OSX, via homebrew:
 
                 self.extensions.extend(cythonize(NoPatchExtension("*", ["cassandra/*.pyx"], extra_compile_args=compile_args),
                                                  nthreads=build_concurrency))
-            except Exception:
+            except Exception as exc:
                 sys.stderr.write("Failed to cythonize one or more modules. These will not be compiled as extensions (optional).\n")
+                sys.stderr.write("Exception: %s" % exc)
 
 
 def pre_build_check():
