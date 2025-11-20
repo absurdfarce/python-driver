@@ -295,6 +295,19 @@ On OSX, via homebrew:
             self.extensions.append(libev_ext)
 
         if try_cython:
+
+            # PYTHON-1428
+            #
+            # Seems strange to test for Cython when we already know try_cython is true but there's a distinction between
+            # expressing a desire to use Cython in a build and Cython being available on the system.  And since this
+            # operation is performed as part of the pre-check below _before_ dependencies are returned from setup()
+            # we have to support a case in which we can be called _before_ the Cython dependency has been satisfied.
+            try:
+                from Cython.Build import cythonize
+            except ImportError:
+                sys.stderr.write("Cython not available")
+                return
+
             try:
                 from Cython.Build import cythonize
                 cython_candidates = ['cluster', 'concurrent', 'connection', 'cqltypes', 'metadata',
@@ -375,6 +388,8 @@ def run_setup(extensions):
     kw['cmdclass']['build_ext'] = build_extensions
     kw['ext_modules'] = [Extension('DUMMY', [])]  # dummy extension makes sure build_ext is called for install
 
+    dependencies = ['geomet>=1.1']
+
     if try_cython:
         # precheck compiler before adding to setup_requires
         # we don't actually negate try_cython because:
@@ -385,11 +400,9 @@ def run_setup(extensions):
             user_specified_cython_version = os.environ.get('CASS_DRIVER_ALLOWED_CYTHON_VERSION')
             if user_specified_cython_version is not None:
                 cython_dep = 'Cython==%s' % (user_specified_cython_version,)
-            kw['setup_requires'] = [cython_dep]
+            dependencies.append(cython_dep)
         else:
             sys.stderr.write("Bypassing Cython setup requirement\n")
-
-    dependencies = ['geomet>=1.1']
 
     _EXTRAS_REQUIRE = {
         'graph': ['gremlinpython==3.4.6'],
