@@ -1,6 +1,6 @@
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = ["setuptools", "Cython>=3.0", "cassandra-driver"]
+requires = ["setuptools", "Cython>=3.0", "toml", "cassandra-driver"]
 
 [project]
 name = "cassandra-driver"
@@ -43,3 +43,12 @@ include = ['cassandra', 'cassandra.io', 'cassandra.cqlengine', 'cassandra.graph'
 'cassandra.datastax', 'cassandra.datastax.insights', 'cassandra.datastax.graph',
 'cassandra.datastax.graph.fluent', 'cassandra.datastax.cloud',
 "cassandra.column_encryption"]
+
+[tool.cassandra.driver]
+extensions = true
+murmur3-extension = true
+libev-extension = true
+cython-extensions = true
+libev-includes = ["/home/mersault/local/libev-4.33/include"]
+libev-libs = ["/home/mersault/local/libev-4.33/lib"]
+build-concurrency = 0

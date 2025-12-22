@@ -17,7 +17,9 @@
 import os
 import sys
 
+from pathlib import Path
 from setuptools import setup, Extension
+import toml
 
 from cassandra import __version__
 
@@ -113,47 +115,46 @@ elif not is_supported_arch:
     sys.stderr.write(arch_unsupported_msg)
 
 # ========================== Extensions ==========================
-murmur3_ext = Extension('cassandra.cmurmur3',
-                        sources=['cassandra/cmurmur3.c'])
+pyproject_toml = Path(__file__).parent / "pyproject.toml"
+pyproject_data = toml.load(pyproject_toml)
+driver_project_data = pyproject_data["tool"]["cassandra"]["driver"]
 
-def eval_env_var_as_array(varname):
-    val = os.environ.get(varname)
-    return None if not val else [v.strip() for v in val.split(',')]
+murmur3_ext = Extension('cassandra.cmurmur3', sources=['cassandra/cmurmur3.c'])
 
 DEFAULT_LIBEV_INCLUDES = ['/usr/include/libev', '/usr/local/include', '/opt/local/include', '/usr/include']
-DEFAULT_LIBEV_LIBDIRS = ['/usr/local/lib', '/opt/local/lib', '/usr/lib64']
-libev_includes = eval_env_var_as_array('CASS_DRIVER_LIBEV_INCLUDES') or DEFAULT_LIBEV_INCLUDES
-libev_libdirs = eval_env_var_as_array('CASS_DRIVER_LIBEV_LIBS') or DEFAULT_LIBEV_LIBDIRS
+DEFAULT_LIBEV_LIBS = ['/usr/local/lib', '/opt/local/lib', '/usr/lib64']
+libev_includes = driver_project_data["libev-includes"] or DEFAULT_LIBEV_INCLUDES
+libev_libs = driver_project_data["libev-libs"] or DEFAULT_LIBEV_LIBS
 if is_macos:
     libev_includes.extend(['/opt/homebrew/include', os.path.expanduser('~/homebrew/include')])
-    libev_libdirs.extend(['/opt/homebrew/lib'])
+    libev_libs.extend(['/opt/homebrew/lib'])
 libev_ext = Extension('cassandra.io.libevwrapper',
                       sources=['cassandra/io/libevwrapper.c'],
                       include_dirs=libev_includes,
                       libraries=['ev'],
-                      library_dirs=libev_libdirs)
+                      library_dirs=libev_libs)
 
-try_extensions = "--no-extensions" not in sys.argv and is_supported_platform and is_supported_arch and not os.environ.get('CASS_DRIVER_NO_EXTENSIONS')
-try_murmur3 = try_extensions and "--no-murmur3" not in sys.argv
-try_libev = try_extensions and "--no-libev" not in sys.argv and not is_pypy and not os.environ.get('CASS_DRIVER_NO_LIBEV')
-try_cython = try_extensions and "--no-cython" not in sys.argv and not is_pypy and not os.environ.get('CASS_DRIVER_NO_CYTHON')
+try_extensions = driver_project_data["extensions"] and is_supported_platform and is_supported_arch
+try_murmur3 = driver_project_data["murmur3-extension"]
+try_libev = driver_project_data["libev-extension"]
+try_cython = driver_project_data["cython-extensions"] and not is_pypy
 
-build_concurrency = int(os.environ.get('CASS_DRIVER_BUILD_CONCURRENCY', '0'))
+build_concurrency = driver_project_data["build-concurrency"]
 
 def build_extension_list():
 
     rv = []
 
     if try_murmur3:
-        sys.stderr.write("Appending murmur extension %s" % murmur3_ext)
+        sys.stderr.write("Appending murmur extension %s\n" % murmur3_ext)
         rv.append(murmur3_ext)
 
     if try_libev:
-        sys.stderr.write("Appending libev extension %s" % libev_ext)
+        sys.stderr.write("Appending libev extension %s\n" % libev_ext)
         rv.append(libev_ext)
 
     if try_cython:
-        sys.stderr.write("Trying Cython builds in order to append Cython extensions")
+        sys.stderr.write("Trying Cython builds in order to append Cython extensions\n")
         try:
             from Cython.Build import cythonize
             cython_candidates = ['cluster', 'concurrent', 'connection', 'cqltypes', 'metadata',
